@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <link rel="stylesheet"  />
+</head>
+<body>
+  
+  <div class="viewport"></div>
+
+  <script src="three.min.js"></script>
+  <script src="physi.js"></script>
+  <script>
+    let container, scene, renderer, camera, light, ball, plane;
+    let WIDTH, HEIGHT, VIEW_ANGLE, ASPECT, NEAR, FAR;
+
+    let clock = new THREE.Clock();
+
+    Physijs.scripts.worker = 'physijs_worker.js';
+    Physijs.scripts.ammo = 'ammo.js';
+
+    container = document.querySelector('.viewport');
+
+    WIDTH = window.innerWidth,
+    HEIGHT = window.innerHeight;
+
+    VIEW_ANGLE = 50,
+    ASPECT = WIDTH / HEIGHT,
+    NEAR = 1,
+    FAR = 10000;
+
+    scene = new Physijs.Scene();
+    scene.setGravity(new THREE.Vector3( 0, -50., 0 ));
+    scene.addEventListener('update', function() {
+        scene.simulate(undefined, 2);
+    });
+
+    renderer = new THREE.WebGLRenderer({
+      antialias: true
+    });
+
+    renderer.setSize(WIDTH, HEIGHT);
+    renderer.shadowMapEnabled = true;
+    renderer.shadowMapSoft = true;
+    renderer.shadowMapType = THREE.PCFShadowMap;
+    renderer.shadowMapAutoUpdate = true;
+
+    container.appendChild(renderer.domElement);
+
+    camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
+
+    camera.position.set(650, 250, 400);
+    camera.lookAt(scene.position);
+    scene.add(camera);
+
+    light = new THREE.DirectionalLight(0xffffff);
+
+    light.position.set(0, 200, 200);
+    light.castShadow = true;
+    light.shadowCameraLeft = -600;
+    light.shadowCameraTop = -600;
+    light.shadowCameraRight = 600;
+    light.shadowCameraBottom = 600;
+    light.shadowCameraNear = 1;
+    light.shadowCameraFar = 1000;
+    light.shadowBias = -.0001
+    light.shadowMapWidth = light.shadowMapHeight = 4000;
+    light.shadowDarkness = .7;
+
+    scene.add(light);
+    const spothelp = new THREE.SpotLightHelper(light, 0x0F0F0F);
+    scene.add(spothelp);
+
+    mainPlaneWidth = 200
+    spawnPlane(0, 0, 0, Math.PI / 7, Math.PI / 2, 0, 0x4d4b57, 800, 3, mainPlaneWidth);
+    spawnPlane(-mainPlaneWidth / 2, 0, 0, Math.PI / 7, Math.PI / 2, 0, 0xe3101e, 800, 30, 5);
+    spawnPlane(mainPlaneWidth / 2, 0, 0, Math.PI / 7, Math.PI / 2, 0, 0xe3101e, 800, 30, 5);
+
+    spawnPlane(mainPlaneWidth / 4, 100, -200, -Math.PI / 7, Math.PI / 7, Math.PI / 7, 0x208fd4, 5, 100, 70);
+    spawnPlane(-mainPlaneWidth / 100, 100, -140, -Math.PI * 2 / 7, -Math.PI / 7, Math.PI / 7, 0x208fd4, 5, 30, 40);
+    spawnCylinder(0, 60, -50, 0, 0, 0, 0xbfa904, 20, 10, 20);
+    spawnCylinder(50, 20, -50, 0, 0, 0, 0xbfa904, 20, 30, 20);
+    
+    spawnPlane(-mainPlaneWidth / 4, 10, 0, 0, 0, 0, 0xa1561a, mainPlaneWidth / 3, 3, mainPlaneWidth);
+    spawnPlane(mainPlaneWidth / 4, 10, 0, 0, 0, 0, 0xa1561a, mainPlaneWidth / 3, 3, mainPlaneWidth);
+    spawnCylinder(-mainPlaneWidth / 4, -38, 90, 0, 0, 0, 0x948e8a, 10, 10, 100);
+    spawnCylinder(mainPlaneWidth / 4, -38, 90, 0, 0, 0, 0x948e8a, 10, 10, 100);
+
+    spawnCylinder(0, -60, 180, 0, 0, 0, 0x278f07, 10, 20, 200);
+    spawnPlane(0, -90, 250, 0, Math.PI / 1.1, 0, 0xe32b8d, mainPlaneWidth * 0.7, 100, 10);
+
+    setInterval(function() {
+      ball = new Physijs.SphereMesh(
+        new THREE.SphereGeometry(
+          Math.random() * (6 - 3) + 3,
+          16,
+          16
+        ),
+        Physijs.createMaterial(
+          new THREE.MeshLambertMaterial({
+            color: 0x0000FF,
+            reflectivity: .8
+          }),
+          .4,
+          .99
+        ),
+        1
+      );
+
+      let r = {
+        x: Math.random() * (Math.PI - Math.PI / 12) + Math.PI / 12,
+        y: Math.random() * (Math.PI - Math.PI / 12) + Math.PI / 12,
+        z: Math.random() * (Math.PI - Math.PI / 12) + Math.PI / 12
+      };
+
+      ball.position.y = 250;
+      ball.position.x = Math.random() * 30;
+      ball.position.z = Math.random() * 200 - 350;
+      ball.castShadow = true;
+      ball.receiveShadow = true;
+
+      scene.add(ball);
+    }, 275);
+
+    render();
+    scene.simulate()
+
+
+    function render() {
+      for (let i = 5; i < scene.children.length - 5; i++) {
+        let obj = scene.children[i];
+
+        if (obj.position.y <= -150) {
+          scene.remove(obj);
+        }
+      }
+
+      renderer.render(scene, camera);
+      requestAnimationFrame(render);
+    }
+
+    function spawnPlane(posX, posY, posZ, rotX, rotY, rotZ, color, sizeX, sizeY, sizeZ) {
+      let wall = new Physijs.BoxMesh(
+              new THREE.CubeGeometry(sizeX, sizeY, sizeZ, 100, 100),
+              Physijs.createMaterial(
+                      new THREE.MeshLambertMaterial({
+                        color: color
+                      }),
+                      .4,
+                      .99
+              ),
+              0
+      );
+
+      wall.position.x = posX;
+      wall.position.y = posY;
+      wall.position.z = posZ;
+
+      wall.rotation.x = rotX;
+      wall.rotation.y = rotY;
+      wall.rotation.z = rotZ;
+      
+      wall.receiveShadow = true;
+      scene.add(wall);
+    }
+
+    function spawnCylinder(posX, posY, posZ, rotX, rotY, rotZ, color, radiusTop, radiusBot, height) {
+      let cylinder = new Physijs.BoxMesh(
+              new THREE.CylinderGeometry(radiusTop, radiusBot, height, 50, 50),
+              Physijs.createMaterial(
+                      new THREE.MeshLambertMaterial({
+                        color: color
+                      }),
+                      .4,
+                      .99
+              ),
+              0
+      );
+
+      cylinder.position.x = posX;
+      cylinder.position.y = posY;
+      cylinder.position.z = posZ;
+
+      cylinder.rotation.x = rotX;
+      cylinder.rotation.y = rotY;
+      cylinder.rotation.z = rotZ;
+      
+      cylinder.receiveShadow = true;
+      scene.add(cylinder);
+    }
+  </script>
+</body>
+</html>
